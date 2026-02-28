@@ -78,7 +78,7 @@ st.markdown(f"""
         border-radius: 50%;
         box-shadow: 3px 5px 8px rgba(0,0,0,0.4);
         z-index: 10;
-    }
+    }}
 
     /* 黑子 */
     .stButton>button:has(div:contains("O"))::after {{
@@ -90,7 +90,7 @@ st.markdown(f"""
         border-radius: 50%;
         box-shadow: 3px 5px 10px rgba(0,0,0,0.5);
         z-index: 10;
-    }
+    }}
 
     /* 計分板樣式 */
     .score-box {{
@@ -103,7 +103,7 @@ st.markdown(f"""
         color: #3E2723;
         font-weight: bold;
         border: 1px solid #3E2723;
-    }
+    }}
 
     /* --- 質感按鈕樣式 (重點更新!) --- */
     /* 我們為重開按鈕添加特定 class 以進行樣式設計 */
@@ -115,19 +115,19 @@ st.markdown(f"""
         box-shadow: 2px 2px 5px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(0,0,0,0.2) !important; /* 內外陰影 */
         transition: all 0.2s ease;
         text-shadow: 1px 1px 1px rgba(0,0,0,0.3); /* 文字陰影 */
-    }
+    }}
 
     /* 按鈕懸停效果 */
     .stButton>button[kind="primary"]:hover {{
         background: linear-gradient(145deg, #795548, #6d4c41) !important;
         box-shadow: 3px 3px 7px rgba(0,0,0,0.4), inset -1px -1px 2px rgba(0,0,0,0.2) !important;
-    }
+    }}
 
     /* 按鈕點擊效果 */
     .stButton>button[kind="primary"]:active {{
         background: linear-gradient(145deg, #5d4037, #6d4c41) !important;
         box-shadow: inset 2px 2px 5px rgba(0,0,0,0.3) !important; /* 按下時轉為內陰影 */
-    }
+    }}
     </style>
     """, unsafe_allow_html=True)
 
