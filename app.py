@@ -39,10 +39,9 @@ bg_img = get_base64_image("fl.png")
 if bg_img:
     bg_style = f'background-image: url("{bg_img}");'
 else:
-    # 若找不到圖片的備用顏色
     bg_style = 'background-color: #DEB887;'
 
-# --- 4. 核心 CSS 修飾 (完美九宮格排版) ---
+# --- 4. 核心 CSS 修飾 (九宮格尺寸縮小一半) ---
 st.markdown(f"""
     <style>
     header, footer, #MainMenu {{ visibility: hidden; height: 0; }}
@@ -58,29 +57,27 @@ st.markdown(f"""
     }}
 
     /* --- 核心：完美九宮格框架 --- */
-    /* 找到包含棋盤按鈕的容器，套用背景並消除所有間距 */
     div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) {{
         {bg_style}
         background-size: 100% 100%;
         background-position: center;
         border: 2px solid #3E2723;
-        box-shadow: 0px 5px 15px rgba(0,0,0,0.4);
+        box-shadow: 0px 3px 10px rgba(0,0,0,0.4);
         margin: 0 auto !important;
-        max-width: 300px !important;
+        
+        /* 這裡將尺寸從 300px 縮小一倍為 150px */
+        max-width: 150px !important; 
         aspect-ratio: 1 / 1;
         
-        /* 徹底消除 Streamlit 的行列間距 */
         gap: 0 !important; 
         padding: 0 !important;
     }}
 
-    /* 消除行 (Row) 的垂直間距 */
     div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) > .element-container {{
         margin: 0 !important;
         padding: 0 !important;
     }}
 
-    /* 消除列 (Column) 的水平間距 */
     div[data-testid="stHorizontalBlock"] {{
         gap: 0 !important;
         padding: 0 !important;
@@ -98,25 +95,23 @@ st.markdown(f"""
         aspect-ratio: 1 / 1 !important;
         background-color: transparent !important;
         border: none !important;
-        border-radius: 0 !important; /* 確保感應區是方形的九宮格 */
+        border-radius: 0 !important;
         padding: 0 !important;
         margin: 0 !important;
         min-height: unset !important;
         transition: background-color 0.2s ease;
     }}
 
-    /* 懸停時方形微亮，清楚提示九宮格位置 */
     button[data-testid="stBaseButton-secondary"]:hover {{
         background-color: rgba(255, 255, 255, 0.15) !important;
     }}
 
-    /* 下子後隱藏背景色 */
     button[data-testid="stBaseButton-secondary"]:has(div:contains("X")),
     button[data-testid="stBaseButton-secondary"]:has(div:contains("O")) {{
         background-color: transparent !important;
     }}
 
-    /* --- 棋子視覺 --- */
+    /* --- 棋子視覺 (由於整體縮小，棋子的陰影也微調) --- */
     button[data-testid="stBaseButton-secondary"]:has(div:contains("X"))::after,
     button[data-testid="stBaseButton-secondary"]:has(div:contains("O"))::after {{
         content: ''; position: absolute; 
@@ -125,16 +120,14 @@ st.markdown(f"""
         border-radius: 50%; z-index: 10;
     }}
     
-    /* 白子 */
     button[data-testid="stBaseButton-secondary"]:has(div:contains("X"))::after {{
         background: radial-gradient(circle at 30% 30%, #ffffff 0%, #f0f0f0 40%, #bdbdbd 100%);
-        box-shadow: 2px 3px 5px rgba(0,0,0,0.4);
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
     }}
     
-    /* 黑子 */
     button[data-testid="stBaseButton-secondary"]:has(div:contains("O"))::after {{
         background: radial-gradient(circle at 35% 35%, #666 0%, #1a1a1a 50%, #000 100%);
-        box-shadow: 2px 3px 5px rgba(0,0,0,0.5);
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
     }}
 
     /* --- UI 其他組件 --- */
@@ -230,7 +223,7 @@ if st.session_state.turn == "O" and st.session_state.winner is None:
     computer_move(difficulty)
     st.rerun()
 
-# 棋盤渲染區 (將被 CSS 自動轉換為完美九宮格)
+# 棋盤渲染區
 board_area = st.container()
 with board_area:
     for i in range(3):
