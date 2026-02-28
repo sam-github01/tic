@@ -35,7 +35,7 @@ st.markdown(f"""
     
     .stApp {{
         background-color: #D2B48C;
-    }
+    }}
 
     .block-container {{
         padding-top: 1rem !important;
