@@ -41,7 +41,7 @@ if bg_img:
 else:
     bg_style = 'background-color: #DEB887;'
 
-# --- 4. 核心 CSS 修飾 (棋盤放大版) ---
+# --- 4. 核心 CSS 修飾 (零死角填滿版) ---
 st.markdown(f"""
     <style>
     header, footer, #MainMenu {{ visibility: hidden; height: 0; }}
@@ -53,7 +53,7 @@ st.markdown(f"""
 
     .block-container {{
         padding-top: 1rem !important;
-        max-width: 800px !important; /* 放寬總寬度以容納 2 倍大的棋盤 */
+        max-width: 800px !important; 
     }}
 
     /* --- 左側 UI 區塊樣式 --- */
@@ -80,6 +80,7 @@ st.markdown(f"""
     }}
 
     /* --- 右側：完美九宮格框架 --- */
+    /* 鎖定棋盤總容器，設定為 320px 的絕對正方形，並啟用 flexbox 以利內部填滿 */
     div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) {{
         {bg_style}
         background-size: 100% 100%;
@@ -88,39 +89,65 @@ st.markdown(f"""
         box-shadow: 0px 5px 15px rgba(0,0,0,0.4);
         margin: 0 auto !important;
         
-        /* 棋盤大小設定：從 160px 放大 2 倍變成 320px */
+        width: 100% !important;
         max-width: 320px !important; 
+        height: 320px !important; /* 強制高度，確保與寬度一致 */
         aspect-ratio: 1 / 1;
         
+        display: flex;
+        flex-direction: column;
         gap: 0 !important; 
         padding: 0 !important;
     }}
 
-    /* 精準消除「棋盤內部」的間距 */
-    div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) div[data-testid="stHorizontalBlock"] {{
-        gap: 0 !important;
-        padding: 0 !important;
+    /* 強制每一列 (Row) 高度佔 33.33% */
+    div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) > div {{
+        flex: 1 1 33.333% !important;
+        height: 33.333% !important;
+        width: 100% !important;
         margin: 0 !important;
-    }}
-    div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) div[data-testid="column"] {{
         padding: 0 !important;
-        margin: 0 !important;
     }}
 
-    /* --- 九宮格按鈕本身 --- */
+    div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) div[data-testid="stHorizontalBlock"] {{
+        height: 100% !important;
+        width: 100% !important;
+        gap: 0 !important;
+        padding: 0 !important;
+    }}
+
+    /* 強制每一行 (Column) 寬度佔 33.33% */
+    div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) div[data-testid="column"] {{
+        flex: 1 1 33.333% !important;
+        width: 33.333% !important;
+        height: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 0 !important;
+    }}
+
+    /* 確保按鈕外部容器也填滿 */
+    div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) div.stButton {{
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }}
+
+    /* --- 九宮格按鈕本身 (徹底填滿) --- */
     button[data-testid="stBaseButton-secondary"] {{
         width: 100% !important;
         height: 100% !important;
-        aspect-ratio: 1 / 1 !important;
         background-color: transparent !important;
         border: none !important;
-        border-radius: 0 !important;
+        border-radius: 0 !important; /* 取消圓角以貼合格線 */
         padding: 0 !important;
         margin: 0 !important;
-        min-height: unset !important;
+        min-height: 100% !important;
         transition: background-color 0.2s ease;
     }}
 
+    /* 懸停時，填滿的色塊更能顯示邊界 */
     button[data-testid="stBaseButton-secondary"]:hover {{
         background-color: rgba(255, 255, 255, 0.15) !important;
     }}
@@ -130,12 +157,12 @@ st.markdown(f"""
         background-color: transparent !important;
     }}
 
-    /* --- 棋子視覺 --- */
+    /* --- 棋子視覺 (保持相對置中與大小) --- */
     button[data-testid="stBaseButton-secondary"]:has(div:contains("X"))::after,
     button[data-testid="stBaseButton-secondary"]:has(div:contains("O"))::after {{
         content: ''; position: absolute; 
-        width: 76%; height: 76%; 
-        top: 12%; left: 12%; 
+        width: 80%; height: 80%; 
+        top: 10%; left: 10%; 
         border-radius: 50%; z-index: 10;
     }}
     
@@ -209,7 +236,6 @@ if st.session_state.turn == "O" and st.session_state.winner is None:
     computer_move(st.session_state.get('diff_key', "普通"))
     st.rerun()
 
-# 調整兩欄比例，讓右邊可以放得下更大的棋盤
 left_ui, right_board = st.columns([1, 1.5], gap="large")
 
 with left_ui:
