@@ -6,7 +6,7 @@ import time
 import base64
 import os
 
-# 1. 頁面配置 (建議在電腦或橫向手機畫面觀看最佳)
+# 1. 頁面配置
 st.set_page_config(
     page_title="精品圍棋井字戰",
     layout="centered",
@@ -41,7 +41,7 @@ if bg_img:
 else:
     bg_style = 'background-color: #DEB887;'
 
-# --- 4. 核心 CSS 修飾 (左右分區版) ---
+# --- 4. 核心 CSS 修飾 (棋盤放大版) ---
 st.markdown(f"""
     <style>
     header, footer, #MainMenu {{ visibility: hidden; height: 0; }}
@@ -53,7 +53,7 @@ st.markdown(f"""
 
     .block-container {{
         padding-top: 1rem !important;
-        max-width: 600px !important; /* 稍微放寬總寬度以容納左右兩欄 */
+        max-width: 800px !important; /* 放寬總寬度以容納 2 倍大的棋盤 */
     }}
 
     /* --- 左側 UI 區塊樣式 --- */
@@ -66,15 +66,15 @@ st.markdown(f"""
         margin-bottom: 15px;
         color: #3E2723;
         font-weight: bold;
-        font-size: 14px;
+        font-size: 16px;
         border-radius: 8px;
         border: 1px dashed #3E2723;
     }}
 
     button[data-testid="stBaseButton-primary"] {{
         background: linear-gradient(145deg, #6d4c41, #5d4037) !important;
-        min-height: 35px !important;
-        font-size: 14px !important;
+        min-height: 40px !important;
+        font-size: 16px !important;
         border-radius: 6px !important;
         margin-top: 5px !important;
     }}
@@ -85,18 +85,18 @@ st.markdown(f"""
         background-size: 100% 100%;
         background-position: center;
         border: 3px solid #3E2723;
-        box-shadow: 0px 3px 10px rgba(0,0,0,0.4);
+        box-shadow: 0px 5px 15px rgba(0,0,0,0.4);
         margin: 0 auto !important;
         
-        /* 棋盤大小設定 */
-        max-width: 160px !important; 
+        /* 棋盤大小設定：從 160px 放大 2 倍變成 320px */
+        max-width: 320px !important; 
         aspect-ratio: 1 / 1;
         
         gap: 0 !important; 
         padding: 0 !important;
     }}
 
-    /* 精準消除「棋盤內部」的間距，不影響左側 UI */
+    /* 精準消除「棋盤內部」的間距 */
     div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) div[data-testid="stHorizontalBlock"] {{
         gap: 0 !important;
         padding: 0 !important;
@@ -141,12 +141,12 @@ st.markdown(f"""
     
     button[data-testid="stBaseButton-secondary"]:has(div:contains("X"))::after {{
         background: radial-gradient(circle at 30% 30%, #ffffff 0%, #f0f0f0 40%, #bdbdbd 100%);
-        box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+        box-shadow: 2px 3px 6px rgba(0,0,0,0.4);
     }}
     
     button[data-testid="stBaseButton-secondary"]:has(div:contains("O"))::after {{
         background: radial-gradient(circle at 35% 35%, #666 0%, #1a1a1a 50%, #000 100%);
-        box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        box-shadow: 2px 3px 6px rgba(0,0,0,0.5);
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -202,22 +202,20 @@ def handle_click(r, c):
             st.session_state.turn = "O"
 
 # --- 6. UI 佈局 (左右雙框) ---
-st.markdown("<h4 style='text-align: center; color: #3E2723; margin-bottom: 20px;'>🀄 圍棋風井字戰</h4>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; color: #3E2723; margin-bottom: 20px;'>🀄 圍棋風井字戰</h3>", unsafe_allow_html=True)
 
-# 執行電腦回合 (放置在渲染前確保邏輯同步)
 if st.session_state.turn == "O" and st.session_state.winner is None:
     time.sleep(0.4)
     computer_move(st.session_state.get('diff_key', "普通"))
     st.rerun()
 
-# 建立左右兩欄
-left_ui, right_board = st.columns([1, 1.2], gap="large")
+# 調整兩欄比例，讓右邊可以放得下更大的棋盤
+left_ui, right_board = st.columns([1, 1.5], gap="large")
 
-# 左側：控制與計分框架
 with left_ui:
     st.markdown(f"""
     <div class="score-box">
-        <span style="font-size: 16px;">🏆 戰績表</span>
+        <span style="font-size: 18px;">🏆 戰績表</span>
         <hr style="width: 80%; border-color: #3E2723; margin: 5px 0;">
         <span>⚪ 玩家: {st.session_state.score_player}</span>
         <span>🤝 平局: {st.session_state.score_draw}</span>
@@ -235,14 +233,13 @@ with left_ui:
 
     if st.session_state.winner:
         msg = "🤝 和局！" if st.session_state.winner == "Tie" else ("⚪ 白棋獲勝！" if st.session_state.winner == "X" else "⚫ 黑棋獲勝！")
-        st.markdown(f"<div style='text-align: center; color: #3E2723; font-weight: bold; margin-top: 15px; font-size:16px; background: rgba(255,255,255,0.3); padding: 5px; border-radius: 5px;'>{msg}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: center; color: #3E2723; font-weight: bold; margin-top: 15px; font-size:18px; background: rgba(255,255,255,0.3); padding: 8px; border-radius: 5px;'>{msg}</div>", unsafe_allow_html=True)
         if st.button("▶️ 下一局", use_container_width=True, type="primary"):
             st.session_state.board = np.full((3, 3), "")
             st.session_state.winner = None
             st.session_state.turn = "X"
             st.rerun()
 
-# 右側：棋盤專屬框架
 with right_board:
     board_area = st.container()
     with board_area:
