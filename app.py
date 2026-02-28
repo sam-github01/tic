@@ -3,6 +3,8 @@ import streamlit as st
 import numpy as np
 import random
 import time
+import base64
+import os
 
 # 1. 手機版配置
 st.set_page_config(
@@ -25,9 +27,22 @@ if 'score_cpu' not in st.session_state:
 if 'score_draw' not in st.session_state:
     st.session_state.score_draw = 0
 
-# --- 3. 核心 CSS 修飾 (極簡無邊框風格) ---
-BOARD_IMG_URL = "https://r.jina.ai/i/0572b847844040a49da3266e700a207f"
+# --- 3. 讀取背景圖 (fl.png) ---
+def get_base64_image(file_name):
+    if os.path.exists(file_name):
+        with open(file_name, "rb") as f:
+            data = f.read()
+            return f"data:image/png;base64,{base64.b64encode(data).decode()}"
+    return ""
 
+bg_img = get_base64_image("fl.png")
+if bg_img:
+    bg_style = f'background-image: url("{bg_img}");'
+else:
+    # 若找不到圖片的備用顏色
+    bg_style = 'background-color: #DEB887;'
+
+# --- 4. 核心 CSS 修飾 (完美九宮格排版) ---
 st.markdown(f"""
     <style>
     header, footer, #MainMenu {{ visibility: hidden; height: 0; }}
@@ -38,98 +53,115 @@ st.markdown(f"""
     }}
 
     .block-container {{
-        padding-top: 0.2rem !important;
+        padding-top: 0.5rem !important;
         max-width: 100% !important;
     }}
 
-    /* --- 核心：棋盤框架 --- */
-    div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stHorizontalBlock"] .stButton) {{
-        background-image: url("{BOARD_IMG_URL}");
-        background-size: cover;
+    /* --- 核心：完美九宮格框架 --- */
+    /* 找到包含棋盤按鈕的容器，套用背景並消除所有間距 */
+    div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) {{
+        {bg_style}
+        background-size: 100% 100%;
         background-position: center;
-        border: 4px solid #3E2723;
-        border-radius: 12px;
-        box-shadow: 0px 5px 15px rgba(0,0,0,0.3);
-        padding: 8px !important;
+        border: 2px solid #3E2723;
+        box-shadow: 0px 5px 15px rgba(0,0,0,0.4);
         margin: 0 auto !important;
-        max-width: 280px !important;
+        max-width: 300px !important;
         aspect-ratio: 1 / 1;
-        background-color: #E3C18A;
+        
+        /* 徹底消除 Streamlit 的行列間距 */
+        gap: 0 !important; 
+        padding: 0 !important;
     }}
 
-    /* 移除所有預設間距 */
-    [data-testid="column"] {{ padding: 0 !important; }}
-    [data-testid="stHorizontalBlock"] {{ gap: 0 !important; }}
+    /* 消除行 (Row) 的垂直間距 */
+    div[data-testid="stVerticalBlock"]:has(button[data-testid="stBaseButton-secondary"]) > .element-container {{
+        margin: 0 !important;
+        padding: 0 !important;
+    }}
 
-    /* --- 棋盤按鈕 (極簡風格) --- */
-    /* 針對下棋的 9 個按鈕進行樣式重構 */
-    .stButton > button[data-testid="stBaseButton-secondary"] {{
-        width: 86% !important; /* 讓按鈕微縮，留出呼吸空間 */
-        margin: 7% auto !important; /* 絕對置中 */
+    /* 消除列 (Column) 的水平間距 */
+    div[data-testid="stHorizontalBlock"] {{
+        gap: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }}
+    div[data-testid="column"] {{
+        padding: 0 !important;
+        margin: 0 !important;
+    }}
+
+    /* --- 九宮格按鈕本身 --- */
+    button[data-testid="stBaseButton-secondary"] {{
+        width: 100% !important;
+        height: 100% !important;
         aspect-ratio: 1 / 1 !important;
-        background-color: rgba(255, 255, 255, 0.08) !important; /* 極淡的白色圓形，簡潔提示位置 */
-        border: none !important; /* 徹底移除邊框 */
-        border-radius: 50% !important; /* 變成圓形，契合圍棋感 */
-        padding: 0px !important;
+        background-color: transparent !important;
+        border: none !important;
+        border-radius: 0 !important; /* 確保感應區是方形的九宮格 */
+        padding: 0 !important;
+        margin: 0 !important;
         min-height: unset !important;
         transition: background-color 0.2s ease;
     }}
 
-    /* 觸控/滑鼠懸停時微微亮起 */
-    .stButton > button[data-testid="stBaseButton-secondary"]:hover {{
-        background-color: rgba(255, 255, 255, 0.2) !important;
+    /* 懸停時方形微亮，清楚提示九宮格位置 */
+    button[data-testid="stBaseButton-secondary"]:hover {{
+        background-color: rgba(255, 255, 255, 0.15) !important;
     }}
 
-    /* 當格子內有下棋 (X 或 O) 時，隱藏背景提示色 */
-    .stButton > button[data-testid="stBaseButton-secondary"]:has(div:contains("X")),
-    .stButton > button[data-testid="stBaseButton-secondary"]:has(div:contains("O")) {{
+    /* 下子後隱藏背景色 */
+    button[data-testid="stBaseButton-secondary"]:has(div:contains("X")),
+    button[data-testid="stBaseButton-secondary"]:has(div:contains("O")) {{
         background-color: transparent !important;
     }}
 
-    /* 棋子視覺 */
-    .stButton>button[data-testid="stBaseButton-secondary"]:has(div:contains("X"))::after,
-    .stButton>button[data-testid="stBaseButton-secondary"]:has(div:contains("O"))::after {{
+    /* --- 棋子視覺 --- */
+    button[data-testid="stBaseButton-secondary"]:has(div:contains("X"))::after,
+    button[data-testid="stBaseButton-secondary"]:has(div:contains("O"))::after {{
         content: ''; position: absolute; 
-        width: 90%; height: 90%; /* 棋子填滿按鈕 */
-        top: 5%; left: 5%; 
+        width: 76%; height: 76%; 
+        top: 12%; left: 12%; 
         border-radius: 50%; z-index: 10;
     }}
     
-    .stButton>button[data-testid="stBaseButton-secondary"]:has(div:contains("X"))::after {{
+    /* 白子 */
+    button[data-testid="stBaseButton-secondary"]:has(div:contains("X"))::after {{
         background: radial-gradient(circle at 30% 30%, #ffffff 0%, #f0f0f0 40%, #bdbdbd 100%);
-        box-shadow: 1px 2px 4px rgba(0,0,0,0.3);
+        box-shadow: 2px 3px 5px rgba(0,0,0,0.4);
     }}
     
-    .stButton>button[data-testid="stBaseButton-secondary"]:has(div:contains("O"))::after {{
+    /* 黑子 */
+    button[data-testid="stBaseButton-secondary"]:has(div:contains("O"))::after {{
         background: radial-gradient(circle at 35% 35%, #666 0%, #1a1a1a 50%, #000 100%);
-        box-shadow: 1px 2px 4px rgba(0,0,0,0.4);
+        box-shadow: 2px 3px 5px rgba(0,0,0,0.5);
     }}
 
-    /* 緊湊計分板 */
+    /* --- UI 其他組件 --- */
     .score-box {{
         text-align: center;
         background: rgba(0, 0, 0, 0.05);
-        padding: 2px;
-        margin-bottom: 5px;
+        padding: 4px;
+        margin-bottom: 8px;
         color: #3E2723;
         font-weight: bold;
-        font-size: 12px;
+        font-size: 13px;
+        border-radius: 6px;
     }}
 
-    /* 縮小版控制按鈕 (重開/下一局) */
-    .stButton > button[data-testid="stBaseButton-primary"] {{
+    button[data-testid="stBaseButton-primary"] {{
         background: linear-gradient(145deg, #6d4c41, #5d4037) !important;
-        height: 30px !important;
-        min-height: 30px !important;
-        line-height: 30px !important;
-        font-size: 12px !important;
-        padding: 0 5px !important;
-        border-radius: 5px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        line-height: 32px !important;
+        font-size: 13px !important;
+        padding: 0 10px !important;
+        border-radius: 6px !important;
     }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 邏輯函數 ---
+# --- 5. 邏輯函數 ---
 def check_winner(board):
     for i in range(3):
         if board[i,0] == board[i,1] == board[i,2] != "": return board[i,0]
@@ -179,11 +211,11 @@ def handle_click(r, c):
         else:
             st.session_state.turn = "O"
 
-# --- 5. UI 渲染 ---
-st.markdown("<h6 style='text-align: center; color: #3E2723; margin: 0;'>🀄 圍棋風井字戰</h6>", unsafe_allow_html=True)
+# --- 6. UI 渲染 ---
+st.markdown("<h5 style='text-align: center; color: #3E2723; margin: 0;'>🀄 圍棋風井字戰</h5>", unsafe_allow_html=True)
 st.markdown(f"""<div class="score-box">白: {st.session_state.score_player} | 平: {st.session_state.score_draw} | 黑: {st.session_state.score_cpu}</div>""", unsafe_allow_html=True)
 
-c1, c2 = st.columns([2, 1])
+c1, c2 = st.columns([1.5, 1])
 with c1:
     difficulty = st.selectbox("難度", ["簡單", "普通", "困難"], index=1, label_visibility="collapsed")
 with c2:
@@ -198,6 +230,7 @@ if st.session_state.turn == "O" and st.session_state.winner is None:
     computer_move(difficulty)
     st.rerun()
 
+# 棋盤渲染區 (將被 CSS 自動轉換為完美九宮格)
 board_area = st.container()
 with board_area:
     for i in range(3):
@@ -208,7 +241,7 @@ with board_area:
 
 if st.session_state.winner:
     msg = "🤝 和局！" if st.session_state.winner == "Tie" else ("⚪ 白勝！" if st.session_state.winner == "X" else "⚫ 黑勝！")
-    st.markdown(f"<p style='text-align: center; color: #3E2723; font-weight: bold; margin: 2px 0; font-size:14px;'>{msg}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; color: #3E2723; font-weight: bold; margin: 5px 0; font-size:15px;'>{msg}</p>", unsafe_allow_html=True)
     if st.button("下一局", use_container_width=True, type="primary"):
         st.session_state.board = np.full((3, 3), "")
         st.session_state.winner = None
