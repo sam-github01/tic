@@ -25,11 +25,12 @@ if 'score_cpu' not in st.session_state:
 if 'score_draw' not in st.session_state:
     st.session_state.score_draw = 0
 
-# --- 3. 核心 CSS 修飾 (極致縮減空間版) ---
+# --- 3. 核心 CSS 修飾 (框架一體化版本) ---
 BOARD_IMG_URL = "https://r.jina.ai/i/0572b847844040a49da3266e700a207f"
 
 st.markdown(f"""
     <style>
+    /* 隱藏多餘 UI */
     header, footer, #MainMenu {{ visibility: hidden; height: 0; }}
     
     .stApp {{
@@ -37,74 +38,82 @@ st.markdown(f"""
         overflow: hidden;
     }}
 
+    /* 頂部極致壓縮 */
     .block-container {{
-        padding-top: 0.5rem !important;
+        padding-top: 0.2rem !important;
         padding-bottom: 0rem !important;
         max-width: 100% !important;
     }}
 
-    /* 棋盤容器：再度縮小以適應一頁顯示 */
-    [data-testid="stVerticalBlock"] > div:has(div.stButton) {{
+    /* --- 核心：棋盤框架一體化 --- */
+    .game-board-frame {{
         background-image: url("{BOARD_IMG_URL}");
-        background-size: 100% 100%;
+        background-size: cover;
         background-position: center;
-        border: 3px solid #3E2723;
-        border-radius: 8px;
-        padding: 3px !important;
+        border: 4px solid #3E2723;
+        border-radius: 12px;
+        box-shadow: 0px 8px 20px rgba(0,0,0,0.4);
+        padding: 6px !important;
         margin: 0 auto !important;
+        max-width: 280px !important;
         aspect-ratio: 1 / 1;
-        max-width: 280px !important; 
         background-color: #E3C18A;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0px; /* 讓格線無縫接軌 */
     }}
 
-    .stButton>button {{
+    /* 讓按鈕在 Grid 框架中完美填滿 */
+    .stButton {{
+        width: 100% !important;
+        margin: 0 !important;
+    }}
+    
+    .stButton > button {{
         width: 100% !important;
         aspect-ratio: 1 / 1 !important;
         background-color: transparent !important;
         border: none !important;
-        margin: 0px !important;
+        border-radius: 0 !important;
         padding: 0px !important;
+        transition: background 0.2s;
     }}
 
-    [data-testid="column"] {{ padding: 0 !important; }}
-    [data-testid="stHorizontalBlock"] {{ gap: 2px !important; }}
-    div[data-testid="stVerticalBlock"] > div {{ padding: 2px 0 !important; }}
-
+    /* 棋子視覺 (微縮版) */
     .stButton>button:has(div:contains("X"))::after,
     .stButton>button:has(div:contains("O"))::after {{
-        width: 80%; height: 80%;
-        top: 10%; left: 10%;
-        content: ''; position: absolute; border-radius: 50%; z-index: 10;
+        content: ''; position: absolute; width: 75%; height: 75%;
+        top: 12.5%; left: 12.5%; border-radius: 50%; z-index: 10;
     }}
 
     .stButton>button:has(div:contains("X"))::after {{
         background: radial-gradient(circle at 30% 30%, #ffffff 0%, #f0f0f0 40%, #bdbdbd 100%);
-        box-shadow: 2px 3px 5px rgba(0,0,0,0.4);
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.4);
     }}
 
     .stButton>button:has(div:contains("O"))::after {{
         background: radial-gradient(circle at 35% 35%, #666 0%, #1a1a1a 50%, #000 100%);
-        box-shadow: 2px 3px 6px rgba(0,0,0,0.5);
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
     }}
 
+    /* 緊湊計分板與 UI */
     .score-box {{
         display: flex;
         justify-content: space-around;
-        background: rgba(255, 255, 255, 0.2);
-        padding: 4px;
-        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.05);
+        padding: 3px;
+        border-radius: 5px;
         margin-bottom: 5px;
         color: #3E2723;
         font-weight: bold;
-        font-size: 12px;
-        border: 1px solid #3E2723;
+        font-size: 13px;
     }}
 
     .stButton>button[data-testid="stBaseButton-primary"] {{
         background: linear-gradient(145deg, #6d4c41, #5d4037) !important;
-        padding: 2px 10px !important;
-        min-height: 30px !important;
-        font-size: 13px !important;
+        min-height: 28px !important;
+        font-size: 12px !important;
+        padding: 0 10px !important;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -133,16 +142,19 @@ def computer_move(difficulty):
     if difficulty == "簡單":
         move = random.choice(empty)
     elif difficulty == "普通":
+        # 簡單進攻與防守邏輯
         for r, c in empty:
             temp = board.copy()
             temp[r,c] = "O"
-            if check_winner(temp) == "O":
-                move = (r,c)
-                break
+            if check_winner(temp) == "O": move = (r,c); break
         if not move:
-            move = random.choice(empty)
-    else: # 困難 (修正處：補齊邏輯避免 SyntaxError)
-        move = random.choice(empty) # 此處可替換為更強的算法
+            for r, c in empty:
+                temp = board.copy()
+                temp[r,c] = "X"
+                if check_winner(temp) == "X": move = (r,c); break
+        if not move: move = random.choice(empty)
+    else: # 困難 (預設為隨機，可擴充 Minimax)
+        move = random.choice(empty)
     
     if move:
         st.session_state.board[move[0], move[1]] = "O"
@@ -163,17 +175,12 @@ def handle_click(r, c):
             st.session_state.turn = "O"
 
 # --- 5. UI 渲染 ---
-st.markdown("<h5 style='text-align: center; color: #3E2723; margin: 0;'>🀄 精品圍棋井字戰</h5>", unsafe_allow_html=True)
+st.markdown("<h6 style='text-align: center; color: #3E2723; margin: 0;'>🀄 圍棋風井字戰</h6>", unsafe_allow_html=True)
 
-st.markdown(f"""
-<div class="score-box">
-    <div>白: {st.session_state.score_player}</div>
-    <div>平: {st.session_state.score_draw}</div>
-    <div>黑: {st.session_state.score_cpu}</div>
-</div>
-""", unsafe_allow_html=True)
+# 計分板與控制項
+st.markdown(f"""<div class="score-box">白: {st.session_state.score_player} | 平: {st.session_state.score_draw} | 黑: {st.session_state.score_cpu}</div>""", unsafe_allow_html=True)
 
-col_diff, col_reset = st.columns([1.2, 1])
+col_diff, col_reset = st.columns([1.5, 1])
 with col_diff:
     difficulty = st.selectbox("難度", ["簡單", "普通", "困難"], index=1, label_visibility="collapsed")
 with col_reset:
@@ -188,13 +195,17 @@ if st.session_state.turn == "O" and st.session_state.winner is None:
     computer_move(difficulty)
     st.rerun()
 
-# 棋盤渲染
+# --- 核心棋盤框 ---
+# 使用 HTML 建立一個框，裡面再用 Streamlit columns 放入按鈕
+st.markdown('<div class="game-board-frame">', unsafe_allow_html=True)
 for i in range(3):
     cols = st.columns(3)
     for j in range(3):
         val = st.session_state.board[i, j]
         cols[j].button(val if val != "" else " ", key=f"btn{i}{j}", on_click=handle_click, args=(i, j))
+st.markdown('</div>', unsafe_allow_html=True)
 
+# 勝負反饋
 if st.session_state.winner:
     msg = "🤝 和局！" if st.session_state.winner == "Tie" else ("⚪ 白勝！" if st.session_state.winner == "X" else "⚫ 黑勝！")
     st.markdown(f"<p style='text-align: center; color: #3E2723; font-weight: bold; margin: 5px 0;'>{msg}</p>", unsafe_allow_html=True)
