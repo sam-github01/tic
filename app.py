@@ -1,96 +1,91 @@
-#井字遊戲 app2.py
+#井字遊戲 app3.py
 import streamlit as st
 import numpy as np
 import random
+import time
 
-# 設定頁面配置，適合手機瀏覽
-st.set_page_config(page_title="圍棋風井字戰", layout="centered")
+# 1. 手機版視窗配置
+st.set_page_config(
+    page_title="圍棋井字棋",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
-# --- 初始化遊戲狀態 (與之前相同) ---
+# --- 2. 初始化遊戲狀態與計分板 ---
 if 'board' not in st.session_state:
     st.session_state.board = np.full((3, 3), "")
 if 'winner' not in st.session_state:
     st.session_state.winner = None
 if 'turn' not in st.session_state:
-    st.session_state.turn = "X"  # 玩家先手 (將顯示為白棋)
+    st.session_state.turn = "X"
 
-# --- 進階 CSS 樣式注入：打造圍棋風格 ---
-# 這裡是最核心的視覺修改
+# 初始化計分板
+if 'score_player' not in st.session_state:
+    st.session_state.score_player = 0
+if 'score_cpu' not in st.session_state:
+    st.session_state.score_cpu = 0
+if 'score_draw' not in st.session_state:
+    st.session_state.score_draw = 0
+
+# --- 3. 手機版專屬 CSS (包含計分板樣式) ---
 st.markdown("""
     <style>
-    /* 1. 全局背景顏色 (選擇一個類似淺木色的顏色) */
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
     .stApp {
-        background-color: #F3E5AB; 
+        background-color: #E3C18A;
+        background-image: radial-gradient(circle, #f0d5a7 0%, #d4a76a 100%);
+    }
+    .block-container {
+        padding-top: 1rem !important;
+        max-width: 400px !important;
     }
 
-    /* 2. 標題和文字顏色 */
-    h1, p, div {
-        color: #4A3121 !important; /* 深棕色文字 */
+    /* 計分板容器樣式 */
+    .score-container {
+        background-color: rgba(74, 49, 33, 0.1);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #5D4037;
+    }
+    .score-item {
+        text-align: center;
+        font-weight: bold;
+        color: #3E2723;
     }
 
-    /* 3. 棋盤區域的容器 (用來畫格線) */
-    [data-testid="stHorizontalBlock"] {
-        background-color: #DEB887; /* 棋盤格本身的木頭色 */
-        border: 2px solid #4A3121;
-        padding: 5px;
-        border-radius: 5px;
+    /* 棋盤容器 */
+    [data-testid="stVerticalBlock"] > div:has(div.stButton) {
+        background-color: #D2B48C;
+        border: 4px solid #5D4037;
+        box-shadow: 0px 10px 20px rgba(0,0,0,0.3);
+        border-radius: 8px;
     }
 
-    /* 4. Streamlit 按鈕基礎樣式 (透明化，自訂大小) */
+    /* 按鈕與棋子樣式 */
     .stButton>button {
-        width: 100%;
-        height: 100px; /* 手機上較好點擊的高度 */
-        background-color: transparent !important; /* 透明背景，顯示下方的木紋 */
-        border: 1px solid #4A3121 !important; /* 棋盤格線 */
-        border-radius: 0px !important; /* 方形格 */
-        color: transparent !important; /* 隱藏原本的 "X" 或 "O" 文字 */
+        width: 100% !important;
+        aspect-ratio: 1 / 1 !important;
+        background-color: transparent !important;
+        border: 1px solid #5D4037 !important;
+        border-radius: 0px !important;
         position: relative;
-        transition: background-color 0.3s;
     }
-
-    /* 滑鼠懸停時的微小變化 (對手機影響較小，但對桌面友好) */
-    .stButton>button:hover {
-        background-color: rgba(74, 49, 33, 0.1) !important;
-    }
-
-    /* 5. 定義白棋 (玩家 X) - 使用 CSS 偽元素 ::after */
     .stButton>button:has(div:contains("X"))::after {
-        content: '';
-        position: absolute;
-        top: 10px; left: 10px; right: 10px; bottom: 10px;
-        background: radial-gradient(circle at 30% 30%, #ffffff, #d0d0d0); /* 立體感白棋 */
-        border-radius: 50%;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        content: ''; position: absolute; width: 80%; height: 80%; top: 10%; left: 10%;
+        background: radial-gradient(circle at 30% 30%, #ffffff 0%, #e0e0e0 100%);
+        border-radius: 50%; box-shadow: 2px 4px 6px rgba(0,0,0,0.3);
     }
-
-    /* 6. 定義黑棋 (電腦 O) - 使用 CSS 偽元素 ::after */
     .stButton>button:has(div:contains("O"))::after {
-        content: '';
-        position: absolute;
-        top: 10px; left: 10px; right: 10px; bottom: 10px;
-        background: radial-gradient(circle at 30% 30%, #444444, #000000); /* 立體感黑棋 */
-        border-radius: 50%;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.4);
-    }
-
-    /* 7. 下拉選單和按鈕的特殊修正 (防止被全局樣式影響) */
-    .stSelectbox div[data-baseweb="select"] {
-        background-color: white !important;
-    }
-    
-    /* 修正重新開始按鈕的樣式，不要讓它變成棋子 */
-    [data-testid="stSidebar"] .stButton>button, 
-    div.stButton:not([data-testid="stHorizontalBlock"] div) > button {
-        background-color: #4A3121 !important;
-        color: white !important;
-        height: auto !important;
-        border-radius: 5px !important;
-        font-size: 16px !important;
+        content: ''; position: absolute; width: 80%; height: 80%; top: 10%; left: 10%;
+        background: radial-gradient(circle at 30% 30%, #444 0%, #000 100%);
+        border-radius: 50%; box-shadow: 2px 4px 6px rgba(0,0,0,0.4);
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 遊戲邏輯函數 (與之前完全相同) ---
+# --- 4. 遊戲邏輯與計分更新 ---
 def check_winner(board):
     for i in range(3):
         if board[i,0] == board[i,1] == board[i,2] != "": return board[i,0]
@@ -100,31 +95,36 @@ def check_winner(board):
     if "" not in board: return "Tie"
     return None
 
+def update_scores(winner):
+    if winner == "X":
+        st.session_state.score_player += 1
+    elif winner == "O":
+        st.session_state.score_cpu += 1
+    elif winner == "Tie":
+        st.session_state.score_draw += 1
+
+# Minimax 演算法 (困難模式)
 def minimax(board, is_maximizing):
     res = check_winner(board)
-    if res == "O": return 1 # 黑棋贏
-    if res == "X": return -1 # 白棋贏
+    if res == "O": return 1
+    if res == "X": return -1
     if res == "Tie": return 0
     if is_maximizing:
-        best_score = -float('inf')
+        best_score = -float('inf'); scores = [minimax(board, False) if board[i,j] == "" else -10 for i,j in [(r,c) for r in range(3) for c in range(3)]]
+        # 簡化版邏輯僅供結構參考，實際執行使用下方展開式
+        best_val = -float('inf')
         for i in range(3):
             for j in range(3):
                 if board[i,j] == "":
-                    board[i,j] = "O"
-                    score = minimax(board, False)
-                    board[i,j] = ""
-                    best_score = max(score, best_score)
-        return best_score
+                    board[i,j] = "O"; val = minimax(board, False); board[i,j] = ""; best_val = max(best_val, val)
+        return best_val
     else:
-        best_score = float('inf')
+        best_val = float('inf')
         for i in range(3):
             for j in range(3):
                 if board[i,j] == "":
-                    board[i,j] = "X"
-                    score = minimax(board, True)
-                    board[i,j] = ""
-                    best_score = min(score, best_score)
-        return best_score
+                    board[i,j] = "X"; val = minimax(board, True); board[i,j] = ""; best_val = min(best_val, val)
+        return best_val
 
 def computer_move(difficulty):
     board = st.session_state.board
@@ -135,70 +135,76 @@ def computer_move(difficulty):
         move = random.choice(empty_cells)
     elif difficulty == "普通":
         for r, c in empty_cells:
-            temp_board = board.copy()
-            temp_board[r, c] = "O"
-            if check_winner(temp_board) == "O":
-                move = (r, c)
-                break
+            temp = board.copy(); temp[r,c] = "O"
+            if check_winner(temp) == "O": move = (r,c); break
         if not move: move = random.choice(empty_cells)
-    elif difficulty == "困難":
-        best_score = -float('inf')
+    else: # 困難
+        best = -float('inf')
         for r, c in empty_cells:
-            board[r, c] = "O"
-            score = minimax(board, False)
-            board[r, c] = ""
-            if score > best_score:
-                best_score = score
-                move = (r, c)
+            board[r,c] = "O"; s = minimax(board, False); board[r,c] = ""
+            if s > best: best = s; move = (r,c)
+    
     if move:
         st.session_state.board[move[0], move[1]] = "O"
-        st.session_state.winner = check_winner(st.session_state.board)
+        win = check_winner(st.session_state.board)
+        if win:
+            st.session_state.winner = win
+            update_scores(win)
         st.session_state.turn = "X"
 
 def handle_click(r, c):
     if st.session_state.board[r, c] == "" and st.session_state.winner is None:
         st.session_state.board[r, c] = "X"
-        st.session_state.winner = check_winner(st.session_state.board)
-        if st.session_state.winner is None:
+        win = check_winner(st.session_state.board)
+        if win:
+            st.session_state.winner = win
+            update_scores(win)
+        else:
             st.session_state.turn = "O"
 
-# --- UI 介面 ---
-st.title("圍棋風井字戰")
-st.write("玩家：白棋 ⚪ | 電腦：黑棋 ⚫")
+# --- 5. UI 實作 ---
+st.markdown("<h2 style='text-align: center; color: #3E2723; margin-bottom: 0;'>圍棋風格井字戰</h2>", unsafe_allow_html=True)
 
-difficulty = st.selectbox("選擇難度", ["簡單", "普通", "困難"])
+# 計分板 UI
+st.markdown(f"""
+<div class="score-container">
+    <div style="display: flex; justify-content: space-around;">
+        <div class="score-item">玩家(白)<br><span style="font-size: 20px;">{st.session_state.score_player}</span></div>
+        <div class="score-item">平局<br><span style="font-size: 20px;">{st.session_state.score_draw}</span></div>
+        <div class="score-item">電腦(黑)<br><span style="font-size: 20px;">{st.session_state.score_cpu}</span></div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
+# 難度與重置
+c1, c2 = st.columns([2, 1])
+with c1:
+    difficulty = st.selectbox("等級", ["簡單", "普通", "困難"], label_visibility="collapsed")
+with c2:
+    if st.button("清空戰績"):
+        st.session_state.score_player = 0
+        st.session_state.score_cpu = 0
+        st.session_state.score_draw = 0
+        st.rerun()
+
+# 電腦移動
 if st.session_state.turn == "O" and st.session_state.winner is None:
-    # 這裡加入一個微小的延遲，讓電腦看起來像在思考
-    import time
-    with st.spinner('電腦思考中...'):
-        time.sleep(0.5)
+    time.sleep(0.5)
     computer_move(difficulty)
     st.rerun()
 
-# --- 繪制棋盤 ---
-# 我們將其封裝在一個 container 中以便應用 CSS 樣式
-board_container = st.container()
+# 棋盤
+for i in range(3):
+    cols = st.columns(3, gap="small")
+    for j in range(3):
+        content = st.session_state.board[i, j]
+        cols[j].button(content if content != "" else " ", key=f"b{i}{j}", on_click=handle_click, args=(i, j))
 
-with board_container:
-    for i in range(3):
-        cols = st.columns(3)
-        for j in range(3):
-            # 雖然按鈕上顯示的是文字 "X" 或 "O"，但 CSS 會隱藏文字並顯示棋子圖案
-            content = st.session_state.board[i, j]
-            cols[j].button(content if content != "" else " ", key=f"btn-{i}-{j}", on_click=handle_click, args=(i, j))
-
-# --- 顯示結果與重新開始 ---
+# 結果與下一局
 if st.session_state.winner:
-    st.markdown("---") # 分隔線
-    if st.session_state.winner == "Tie":
-        st.info("和局！")
-    else:
-        wn = "白棋 (玩家)" if st.session_state.winner == "X" else "黑棋 (電腦)"
-        st.success(f"🎉 贏家是: {wn}")
-    
-    # 這個按鈕不會被棋盤樣式影響
-    if st.button("重新開始新局"):
+    msg = "🤝 和局！" if st.session_state.winner == "Tie" else ("⚪ 你贏了！" if st.session_state.winner == "X" else "⚫ 電腦贏了！")
+    st.markdown(f"<h3 style='text-align: center; color: #3E2723;'>{msg}</h3>", unsafe_allow_html=True)
+    if st.button("開始下一局", use_container_width=True):
         st.session_state.board = np.full((3, 3), "")
         st.session_state.winner = None
         st.session_state.turn = "X"
